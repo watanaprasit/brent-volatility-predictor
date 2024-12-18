@@ -1,7 +1,10 @@
 import os
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 import joblib
 
 DATA_PATH = "data/brent_crude_oil.csv"
@@ -19,17 +22,36 @@ def train_model():
 
     # Calculate volatility
     data["volatility"] = data["price"].pct_change().rolling(window=30).std()
-    data.dropna(subset=["volatility"], inplace=True)  # Drop rows with NaN volatility
+    data["lagged_volatility"] = data["volatility"].shift(1)
+    data["price_change"] = data["price"].pct_change()
+    data["moving_avg_7"] = data["price"].rolling(window=7).mean()
+    data["moving_avg_30"] = data["price"].rolling(window=30).mean()
+    data.dropna(inplace=True)  # Drop rows with NaN values after adding features
 
     # Prepare features and labels
     data["timestamp"] = pd.to_datetime(data["date"])
     data["day_of_year"] = data["timestamp"].dt.dayofyear
-    X = data[["day_of_year"]].values
+    features = ["day_of_year", "lagged_volatility", "price_change", "moving_avg_7", "moving_avg_30"]
+    X = data[features].values
     y = data["volatility"].values
 
-    # Train the model
-    model = LinearRegression()
-    model.fit(X, y)
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, shuffle=False)
+
+    # Train the model (choose Random Forest or XGBoost)
+    print("Training model...")
+    # Option 1: Random Forest
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+
+    # Option 2: XGBoost (Uncomment below to use XGBoost)
+    # model = XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=5, random_state=42)
+
+    model.fit(X_train, y_train)
+
+    # Evaluate the model
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+    print(f"Mean Squared Error on Test Set: {mse}")
 
     # Save the model
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
@@ -38,5 +60,6 @@ def train_model():
 
 if __name__ == "__main__":
     train_model()
+
 
 

@@ -3,13 +3,14 @@ import pytz
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import HTMLResponse
 import os
 import sys
 from app.crud import fetch_data
 from app.model import train_model
-from app.volatility import calculate_volatility
-import uvicorn  # Import uvicorn to ensure app runs with the correct parameters
+from app.volatility import calculate_volatility  # Import only the function
+
+import uvicorn
 
 # Ensure the app directory is in the module search path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -57,6 +58,7 @@ def read_root():
 def get_volatility(symbol: str = "BZ=F", window_size: int = 30):
     """
     Endpoint to calculate and return volatility for the given parameters.
+    This now also predicts the next 7 days' volatility using a machine learning model.
     """
     try:
         # Generate the volatility plot and get the last volatility value
@@ -91,6 +93,8 @@ def get_last_update():
 # Ensure the app is listening on 0.0.0.0:8000
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
 
 
 

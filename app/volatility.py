@@ -1,12 +1,15 @@
 import pandas as pd
 import yfinance as yf
-import matplotlib
 import os
 from datetime import timedelta
-import matplotlib.pyplot as plt
-matplotlib.use('Agg')  # Use the Agg backend, which does not require a display
+import matplotlib
 
-def calculate_volatility(symbol: str, window_size: int = 30):
+# Set matplotlib to use the Agg backend to avoid GUI issues
+matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt
+
+def calculate_volatility(symbol: str = "BZ=F", window_size: int = 30):
     """
     Fetches historical data for the given symbol and calculates the volatility
     over a rolling window of the past year until the day before the current date.
@@ -65,6 +68,9 @@ def calculate_volatility(symbol: str, window_size: int = 30):
 
     # Return the relative path for use in the API response
     return f"images/{plot_filename}", last_volatility  # Include last volatility value
+
+
+
 
 
 
