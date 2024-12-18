@@ -3,9 +3,10 @@ import pytz
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 import os
 import sys
+import pandas as pd
 from app.crud import fetch_data
 from app.model import train_model
 from app.volatility import calculate_volatility  # Import only the function
@@ -88,6 +89,57 @@ def get_last_update():
         return {"last_update": last_update_time.strftime("%Y-%m-%d %H:%M:%S")}
     else:
         return {"last_update": "No updates have been made yet."}
+
+
+@app.get("/api/brent-crude-data/")
+async def get_brent_crude_data():
+    """
+    Exposes an endpoint for the frontend to get the historical Brent Crude data.
+    """
+    try:
+        # Read the saved CSV data
+        data = pd.read_csv("data/brent_crude_oil.csv")
+        
+        # Debug: Print raw data to check if it's being read correctly
+        print("Raw data read from CSV:")
+        print(data)
+
+        # Clean the data: remove the extra "BZ=F" row in column 'Ticker' (if present)
+        data = data.dropna(subset=["date", "price"])  # Drop rows where 'date' or 'price' are missing
+        
+        # Debug: Print data after removing missing values
+        print("Data after dropping missing values:")
+        print(data)
+
+        # Convert the 'date' column to a datetime object (automatically detects the format)
+        data['date'] = pd.to_datetime(data['date'], errors='coerce')
+
+        # Debug: Print data after date conversion
+        print("Data after date conversion:")
+        print(data)
+
+        # Drop rows where 'date' conversion failed (in case of invalid dates)
+        data = data.dropna(subset=['date'])
+
+        # Debug: Print data after dropping invalid dates
+        print("Data after dropping invalid dates:")
+        print(data)
+
+        # Convert the date column to string for JSON serialization
+        data['date'] = data['date'].dt.strftime('%Y-%m-%d')  # Format date as a string
+
+        # Convert the cleaned data to a list of dictionaries for the JSON response
+        data_dict = data[['date', 'price']].to_dict(orient="records")
+        
+        # Debug: Print the final data before returning it
+        print("Final data to be returned as JSON:")
+        print(data_dict)
+
+        return JSONResponse(content={"status": "success", "data": data_dict})
+    
+    except Exception as e:
+        return JSONResponse(content={"status": "failed", "error": str(e)})
+
 
 
 # Ensure the app is listening on 0.0.0.0:8000

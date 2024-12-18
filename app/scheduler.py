@@ -1,7 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from zoneinfo import ZoneInfo  # Use zoneinfo for time zone handling
-from crud import fetch_data
+from crud import fetch_data  # Make sure to import the fetch_data function
 from model import train_model
 import logging
 from datetime import datetime
@@ -14,14 +14,14 @@ SGT = ZoneInfo("Asia/Singapore")
 
 def scheduled_update():
     """
-    This function fetches the data and trains the model for the previous day's Brent Crude Oil closing data.
+    This function fetches the data, updates the CSV, and trains the model for the previous day's Brent Crude Oil closing data.
     """
     # Log the start of the task
     logging.info(f"Starting daily update for the past day: {datetime.now(SGT)}")
     
-    # Update the dataset for the past day's closing data
-    fetch_data()  # Fetches the data
-    # Retrain the model
+    # Update the dataset with the latest data
+    fetch_data()  # This will update the CSV with new data from Yahoo Finance
+    # Retrain the model with the updated data
     train_model()  # Retrains the model
     
     logging.info("Daily update complete.")
@@ -55,4 +55,5 @@ if __name__ == "__main__":
             pass  # Keeps the scheduler running
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
+
 
