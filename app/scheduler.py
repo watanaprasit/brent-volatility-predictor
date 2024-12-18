@@ -1,21 +1,58 @@
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+from zoneinfo import ZoneInfo  # Use zoneinfo for time zone handling
 from crud import fetch_data
 from model import train_model
+import logging
+from datetime import datetime
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+
+# Define the Singapore timezone using zoneinfo
+SGT = ZoneInfo("Asia/Singapore")
 
 def scheduled_update():
-    fetch_data()  # Update dataset
-    train_model()  # Retrain model
-    print("Daily update complete.")
+    """
+    This function fetches the data and trains the model for the previous day's Brent Crude Oil closing data.
+    """
+    # Log the start of the task
+    logging.info(f"Starting daily update for the past day: {datetime.now(SGT)}")
+    
+    # Update the dataset for the past day's closing data
+    fetch_data()  # Fetches the data
+    # Retrain the model
+    train_model()  # Retrains the model
+    
+    logging.info("Daily update complete.")
+
+def log_job_status(event):
+    """
+    Log job status (whether it was executed or there was an error)
+    """
+    if event.exception:
+        logging.error(f"Job failed: {event.job_id}")
+    else:
+        logging.info(f"Job completed: {event.job_id}")
 
 if __name__ == "__main__":
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(scheduled_update, "interval", days=1)
+    # Set up the scheduler with Singapore timezone
+    scheduler = BackgroundScheduler(timezone=SGT)
+
+    # Add the job to run daily at 2 PM Singapore Time
+    scheduler.add_job(scheduled_update, "cron", hour=14, minute=0, second=0, id="daily_update_job")
+
+    # Add a listener to log job status
+    scheduler.add_listener(log_job_status, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+
+    # Start the scheduler
     scheduler.start()
 
+    # Keep the scheduler running
     try:
-        print("Scheduler running. Press Ctrl+C to exit.")
+        logging.info("Scheduler running. Press Ctrl+C to exit.")
         while True:
-            pass  # Keep the scheduler running
+            pass  # Keeps the scheduler running
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
+
