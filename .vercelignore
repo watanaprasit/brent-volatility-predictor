@@ -1,5 +1,9 @@
-venv/
+node_modules/
+.git/
+.venv/
 __pycache__/
 *.log
-*.pyc
-.git/
+*.csv
+*.json
+large-datasets/
+
