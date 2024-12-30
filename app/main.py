@@ -10,7 +10,7 @@ import pandas as pd
 from app.crud import fetch_data
 from app.model import train_model
 from app.volatility import calculate_volatility  # Import only the function
-
+from datetime import timedelta
 import uvicorn
 
 # Ensure the app directory is in the module search path
@@ -94,51 +94,74 @@ def get_last_update():
 @app.get("/api/brent-crude-data/")
 async def get_brent_crude_data():
     """
-    Exposes an endpoint for the frontend to get the historical Brent Crude data.
+    Exposes an endpoint for the frontend to get the latest Brent Crude data and data for the past 7 days.
     """
     try:
-        # Read the saved CSV data
+        # Read the CSV data
         data = pd.read_csv("data/brent_crude_oil.csv")
         
         # Debug: Print raw data to check if it's being read correctly
         print("Raw data read from CSV:")
         print(data)
 
-        # Clean the data: remove the extra "BZ=F" row in column 'Ticker' (if present)
-        data = data.dropna(subset=["date", "price"])  # Drop rows where 'date' or 'price' are missing
-        
-        # Debug: Print data after removing missing values
-        print("Data after dropping missing values:")
-        print(data)
+        # Extract all columns that match the pattern for dates and prices
+        date_columns = [col for col in data.columns if 'date' in col]
+        price_columns = [col for col in data.columns if 'price' in col]
 
-        # Convert the 'date' column to a datetime object (automatically detects the format)
-        data['date'] = pd.to_datetime(data['date'], errors='coerce')
+        # Ensure equal numbers of date and price columns
+        if len(date_columns) != len(price_columns):
+            raise ValueError("Mismatch between date and price columns.")
 
-        # Debug: Print data after date conversion
-        print("Data after date conversion:")
-        print(data)
+        # Flatten the data into a single DataFrame
+        combined_data = pd.DataFrame()
+        for date_col, price_col in zip(date_columns, price_columns):
+            temp_data = data[[date_col, price_col]].rename(
+                columns={date_col: "date", price_col: "price"}
+            )
+            combined_data = pd.concat([combined_data, temp_data])
 
-        # Drop rows where 'date' conversion failed (in case of invalid dates)
-        data = data.dropna(subset=['date'])
+        # Drop rows with missing data and convert the date column
+        combined_data = combined_data.dropna(subset=["date", "price"])
+        combined_data["date"] = pd.to_datetime(combined_data["date"], errors="coerce")
+        combined_data = combined_data.dropna(subset=["date"])
 
-        # Debug: Print data after dropping invalid dates
-        print("Data after dropping invalid dates:")
-        print(data)
+        # Sort by date
+        combined_data = combined_data.sort_values(by="date", ascending=True)
 
-        # Convert the date column to string for JSON serialization
-        data['date'] = data['date'].dt.strftime('%Y-%m-%d')  # Format date as a string
+        # Get the latest entry
+        latest_entry = combined_data.iloc[-1]
+        latest_date = latest_entry["date"]
 
-        # Convert the cleaned data to a list of dictionaries for the JSON response
-        data_dict = data[['date', 'price']].to_dict(orient="records")
-        
-        # Debug: Print the final data before returning it
-        print("Final data to be returned as JSON:")
-        print(data_dict)
+        # Filter the past 7 days of data
+        past_week_data = combined_data[
+            (combined_data["date"] > (latest_date - timedelta(days=7))) & 
+            (combined_data["date"] <= latest_date)
+        ]
 
-        return JSONResponse(content={"status": "success", "data": data_dict})
+        # Format the past week data
+        past_week_list = past_week_data.assign(
+            date=past_week_data["date"].dt.strftime("%Y-%m-%d")
+        )[["date", "price"]].to_dict(orient="records")
+
+        # Prepare the final response
+        response_data = {
+            "latest": {
+                "date": latest_entry["date"].strftime("%Y-%m-%d"),
+                "price": latest_entry["price"],
+            },
+            "past_7_days": past_week_list,
+        }
+
+        # Debug: Print the response data
+        print("Response data to be returned as JSON:")
+        print(response_data)
+
+        return JSONResponse(content={"status": "success", "data": response_data})
     
     except Exception as e:
         return JSONResponse(content={"status": "failed", "error": str(e)})
+
+
 
 
 
