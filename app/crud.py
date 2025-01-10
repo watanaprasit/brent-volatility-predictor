@@ -12,13 +12,13 @@ def fetch_data(symbol: str = SYMBOL):
     os.makedirs(os.path.dirname(DATA_PATH), exist_ok=True)
     
     try:
-        today = datetime.today().strftime('%Y-%m-%d')
-        past_year = (datetime.today() - timedelta(days=365)).strftime('%Y-%m-%d')
+        today = datetime.now().strftime('%Y-%m-%d')
+        past_year = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
         print(f"Fetching data for {symbol} from {past_year} to {today}...")
         
         # Fetch data from yfinance
         data = yf.download(symbol, start=past_year, end=today)
-        
+
         if data.empty:
             raise ValueError(f"No data returned for symbol {symbol}. Please check the symbol and date range.")
         
@@ -26,19 +26,24 @@ def fetch_data(symbol: str = SYMBOL):
         data = data[['Close']].reset_index()
         data.rename(columns={"Date": "date", "Close": "price"}, inplace=True)
 
-        # Check if the CSV exists
+        # If the CSV already exists, update it
         if os.path.exists(DATA_PATH):
             # Read the existing data
             existing_data = pd.read_csv(DATA_PATH)
             
-            # Check for duplicates, only append if the new data is not already in the CSV
-            new_data = data[~data['date'].isin(existing_data['date'])]
-            combined_data = pd.concat([existing_data, new_data], ignore_index=True)
+            # Keep only 'date' and 'price' columns
+            existing_data = existing_data[['date', 'price']]
+            
+            # Merge the new data with the existing data based on the 'date' column
+            combined_data = pd.concat([existing_data, data], ignore_index=True)
+            
+            # Drop duplicate rows based on the 'date' column (keeping the most recent price)
+            combined_data = combined_data.drop_duplicates(subset='date', keep='last')
         else:
             # If the file doesn't exist, use the fetched data
             combined_data = data
         
-        # Save the updated data to CSV
+        # Save the updated data to CSV, replacing the old file
         combined_data.to_csv(DATA_PATH, index=False)
         print(f"Data saved to {DATA_PATH}")
     
@@ -47,20 +52,3 @@ def fetch_data(symbol: str = SYMBOL):
 
 if __name__ == "__main__":
     fetch_data()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
