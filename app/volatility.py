@@ -55,26 +55,18 @@ def calculate_volatility(symbol: str = "BZ=F", window_size: int = 30):
     plt.legend()
     plt.grid(True)
 
-    # Save the plot to a 'static/images' directory
+    # Save the plot to a 'static/images' directory (always overwrite the existing file)
     image_dir = "static/images"
     if not os.path.exists(image_dir):
         os.makedirs(image_dir)
 
-    # Constructing the file path and saving the plot
-    plot_filename = f'volatility_{symbol}_{start_date}_to_{end_date}.png'
+    # Define the fixed filename for the plot
+    plot_filename = 'latest_volatility.png'
     plot_path = os.path.join(image_dir, plot_filename)
+
+    # Save the plot and overwrite the existing file
     plt.savefig(plot_path)
     plt.close()
 
     # Return the relative path for use in the API response
-    return f"images/{plot_filename}", last_volatility  # Include last volatility value
-
-
-
-
-
-
-
-
-
-
+    return f"images/{plot_filename}", last_volatility

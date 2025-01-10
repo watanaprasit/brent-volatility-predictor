@@ -1,8 +1,6 @@
 import os
 import pandas as pd
-import numpy as np
 from sklearn.ensemble import RandomForestRegressor
-from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 import joblib
@@ -17,20 +15,24 @@ def train_model():
 
     # Load and clean data
     data = pd.read_csv(DATA_PATH)
-    data["price"] = pd.to_numeric(data["price"], errors="coerce")  # Convert to numeric, set invalid to NaN
-    data.dropna(subset=["price"], inplace=True)  # Drop rows with NaN prices
+    
+    # Ensure the 'price' column is numeric and remove any rows with invalid data
+    data["price"] = pd.to_numeric(data["price"], errors="coerce")
+    data.dropna(subset=["price"], inplace=True)  # Drop rows where 'price' is NaN
 
-    # Calculate volatility
+    # Calculate volatility (rolling window)
     data["volatility"] = data["price"].pct_change().rolling(window=30).std()
     data["lagged_volatility"] = data["volatility"].shift(1)
     data["price_change"] = data["price"].pct_change()
     data["moving_avg_7"] = data["price"].rolling(window=7).mean()
     data["moving_avg_30"] = data["price"].rolling(window=30).mean()
-    data.dropna(inplace=True)  # Drop rows with NaN values after adding features
+    data.dropna(inplace=True)  # Drop rows with NaN values from the feature calculations
 
-    # Prepare features and labels
+    # Add a timestamp feature (ensure it's in datetime format)
     data["timestamp"] = pd.to_datetime(data["date"])
     data["day_of_year"] = data["timestamp"].dt.dayofyear
+
+    # Define features and target variable
     features = ["day_of_year", "lagged_volatility", "price_change", "moving_avg_7", "moving_avg_30"]
     X = data[features].values
     y = data["volatility"].values
@@ -53,13 +55,10 @@ def train_model():
     mse = mean_squared_error(y_test, y_pred)
     print(f"Mean Squared Error on Test Set: {mse}")
 
-    # Save the model
+    # Save the trained model
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
     joblib.dump(model, MODEL_PATH)
     print(f"Model saved to {MODEL_PATH}")
 
 if __name__ == "__main__":
     train_model()
-
-
-
