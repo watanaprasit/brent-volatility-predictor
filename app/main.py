@@ -162,20 +162,6 @@ async def get_brent_crude_data():
         return JSONResponse(content={"status": "failed", "error": str(e)})
 
 
-
-
-
 # Ensure the app is listening on 0.0.0.0:8000
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-
-
-
-
-
-
-
-
-
-
